@@ -1,20 +1,38 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Kost Landing Page
 
-# Run and deploy your AI Studio app
+Website publik dan portal penghuni untuk pencarian kamar, informasi fasilitas, simulasi harga, serta pembayaran tagihan sewa kos secara online.
 
-This contains everything you need to run your app locally.
+## 🚀 Fitur Utama
+- **Katalog Kamar & Fasilitas**: Galeri foto modern, daftar fasilitas kos, informasi tipe kamar, dan ketersediaan unit real-time.
+- **Lokasi & Kontak**: Peta lokasi strategis dan integrasi tombol hubungi pengelola via WhatsApp.
+- **Portal Penyewa**:
+  - Pengecekan status tagihan sewa kamar.
+  - Pembayaran online melalui QRIS atau Virtual Account / Transfer Bank.
+  - Konfirmasi bukti pembayaran dan resi elektronik.
+- **Responsif & Mobile-First**: Tampilan optimal untuk perangkat desktop maupun smartphone dilengkapi bottom navigation bar.
 
-View your app in AI Studio: https://ai.studio/apps/7e311c99-cd99-45c5-83e6-a877c1a26e95
+## 🛠️ Tech Stack
+- **Framework**: Vite + React 19
+- **Bahasa**: TypeScript
+- **Styling**: Tailwind CSS
+- **Icon**: Lucide React
+- **Komunikasi Data**: REST API Client terhubung ke `kost_backend` (`http://localhost:5000/api`)
 
-## Run Locally
+## 📦 Menjalankan Proyek
 
-**Prerequisites:**  Node.js
+### 1. Instalasi Dependensi
+```bash
+npm install --legacy-peer-deps
+```
 
+### 2. Jalankan Mode Development
+```bash
+npx vite --port 3001 --host 0.0.0.0
+```
+Buka browser di: `http://localhost:3001`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 3. Build Production
+```bash
+npm run build
+npm run preview
+```
