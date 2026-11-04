@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --color-brand-deep: #0E3B33;
+  --color-brand-primary: #12483E;
+  --color-brand-hover: #0A2E28;
+  --color-brand-light: #EBF3F0;
+  --color-charcoal-primary: #1A2220;
+  --color-charcoal-secondary: #45524F;
+  --color-charcoal-muted: #71807C;
+  --color-canvas-warm: #FAF9F6;
+}
+
+html {
+  font-family: var(--font-sans);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: #FAF9F6;
+  color: #1A2220;
+}

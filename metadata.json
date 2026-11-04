@@ -1,0 +1,6 @@
+{
+  "name": "Senja Living - Prototype Website Kost",
+  "description": "Prototype frontend website kost modern minimalis, clean, dan profesional dengan pendekatan mobile-first untuk calon penghuni dan penghuni aktif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
