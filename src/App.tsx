@@ -9,12 +9,26 @@ import { PaymentMethodPage } from './pages/PaymentMethodPage';
 import { QrisPaymentPage } from './pages/QrisPaymentPage';
 import { BrivaPaymentPage } from './pages/BrivaPaymentPage';
 import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
+import { TenantLoginForm } from './components/TenantLoginForm';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<CurrentPage>('beranda');
   const [selectedChannel, setSelectedChannel] = useState<PaymentChannel>('qris');
   const [isBillPaid, setIsBillPaid] = useState<boolean>(false);
   const [isContactOpen, setIsContactOpen] = useState<boolean>(false);
+  const [loggedInTenant, setLoggedInTenant] = useState<any>(null);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('tenant_session');
+      if (saved) {
+        setLoggedInTenant(JSON.parse(saved));
+      }
+    } catch {
+      localStorage.removeItem('tenant_session');
+    }
+  }, []);
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -39,6 +53,12 @@ export default function App() {
     setCurrentPage('pembayaran-sukses');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('tenant_session');
+    setLoggedInTenant(null);
+    setCurrentPage('beranda');
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF9F6] text-[#1A2220] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-[#12483E]/15 selection:text-[#12483E]">
       {/* Top Header - Beranda & Profil */}
@@ -58,11 +78,21 @@ export default function App() {
         )}
 
         {currentPage === 'profil' && (
-          <ProfilePage
-            isPaid={isBillPaid}
-            onNavigateToPayment={() => setCurrentPage('pilih-metode')}
-            onViewSuccessReceipt={() => setCurrentPage('pembayaran-sukses')}
-          />
+          loggedInTenant ? (
+            <ProfilePage
+              tenant={loggedInTenant}
+              isPaid={isBillPaid}
+              onLogout={handleLogout}
+              onNavigateToPayment={() => setCurrentPage('pilih-metode')}
+              onViewSuccessReceipt={() => setCurrentPage('pembayaran-sukses')}
+            />
+          ) : (
+            <TenantLoginForm
+              onLoginSuccess={(tenant) => {
+                setLoggedInTenant(tenant);
+              }}
+            />
+          )
         )}
 
         {currentPage === 'pilih-metode' && (

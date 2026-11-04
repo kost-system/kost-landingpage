@@ -19,13 +19,17 @@ import {
 } from 'lucide-react';
 
 interface ProfilePageProps {
+  tenant?: any;
   isPaid?: boolean;
+  onLogout?: () => void;
   onNavigateToPayment: () => void;
   onViewSuccessReceipt?: () => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
+  tenant,
   isPaid = false,
+  onLogout,
   onNavigateToPayment,
   onViewSuccessReceipt,
 }) => {
@@ -35,6 +39,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
   const [showContractNotice, setShowContractNotice] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+
+  const tenantName = tenant?.name || 'Rian Pratama';
+  const tenantPhone = tenant?.phone || '0812-3456-7890';
+  const tenantEmail = tenant?.email || 'rian.pratama@mail.com';
+  const tenantRoom = tenant?.roomNumber || 'A-101';
 
   return (
     <div className="w-full py-4 sm:py-8 pb-20 sm:pb-12">
@@ -541,7 +550,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   Kembali
                 </button>
                 <button
-                  onClick={() => setShowLogoutConfirm(false)}
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    if (onLogout) onLogout();
+                  }}
                   className="flex-1 py-1.5 text-xs font-semibold text-white bg-rose-700 hover:bg-rose-800 rounded-lg transition-colors cursor-pointer"
                 >
                   Keluar
