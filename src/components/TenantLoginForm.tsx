@@ -18,52 +18,56 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({ onLoginSuccess
 
     try {
       const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
-      const res = await fetch(`${apiUrl}/tenants`);
-      if (!res.ok) throw new Error('Gagal menghubungi server');
       
-      const tenants: any[] = await res.json();
-      
-      // Cari tenant yang nomor HP cocok & aktif
-      const cleanInputPhone = phoneNumber.replace(/[^0-9]/g, '');
-      const matched = tenants.find((t) => {
+      // Ambil data tenant & rooms dari database
+      const [tenantsRes, roomsRes] = await Promise.all([
+        fetch(`${apiUrl}/tenants`),
+        fetch(`${apiUrl}/rooms`),
+      ]);
+
+      if (!tenantsRes.ok || !roomsRes.ok) {
+        throw new Error('Gagal menghubungi server database.');
+      }
+
+      const tenants: any[] = await tenantsRes.json();
+      const rooms: any[] = await roomsRes.json();
+
+      // Bersihkan nomor input
+      const cleanInput = phoneNumber.replace(/[^0-9]/g, '');
+
+      // Verifikasi HANYA berdasarkan database nyata
+      const matchedTenant = tenants.find((t) => {
+        if (t.status !== 'active') return false;
         const cleanDbPhone = (t.phone || '').replace(/[^0-9]/g, '');
-        return cleanDbPhone.endsWith(cleanInputPhone.slice(-8)) || cleanDbPhone === cleanInputPhone;
+        return (
+          cleanDbPhone === cleanInput ||
+          cleanDbPhone.slice(-8) === cleanInput.slice(-8)
+        );
       });
 
-      if (matched) {
-        localStorage.setItem('tenant_session', JSON.stringify(matched));
-        onLoginSuccess(matched);
-      } else {
-        // Fallback demo/preview jika database belum terisi penghuni
-        if (phoneNumber === '08123456789' || phoneNumber === '0812' || phoneNumber.length >= 4) {
-          const demoTenant = {
-            id: 'tenant-demo',
-            name: 'Penghuni Kos (Demo)',
-            phone: phoneNumber,
-            email: 'penghuni@senjaliving.id',
-            roomNumber: roomNumber || 'A-101',
-            status: 'active',
-            startDate: '2026-01-01',
-          };
-          localStorage.setItem('tenant_session', JSON.stringify(demoTenant));
-          onLoginSuccess(demoTenant);
-        } else {
-          setErrorMessage('Nomor telepon tidak terdaftar sebagai penghuni aktif. Hubungi pengelola kos.');
-        }
+      if (!matchedTenant) {
+        setErrorMessage(
+          'Nomor telepon tidak ditemukan dalam daftar penghuni aktif di sistem. Pastikan nomor yang diisi sudah terdaftar oleh pengelola kos.'
+        );
+        setIsLoading(false);
+        return;
       }
-    } catch (err: any) {
-      // Jika backend offline, berikan akses demo
-      const demoTenant = {
-        id: 'tenant-demo',
-        name: 'Penghuni Kos (Offline)',
-        phone: phoneNumber,
-        email: 'penghuni@senjaliving.id',
-        roomNumber: roomNumber || 'A-101',
-        status: 'active',
-        startDate: '2026-01-01',
+
+      // Ambil detail kamar terkait dari database
+      const assignedRoom = rooms.find((r) => r.id === matchedTenant.roomId);
+
+      const sessionData = {
+        ...matchedTenant,
+        roomNumber: assignedRoom?.number || 'Belum Ditentukan',
+        roomType: assignedRoom?.type || 'Standard',
+        roomFloor: assignedRoom?.floor || 1,
+        monthlyPrice: assignedRoom?.monthlyPrice || 0,
       };
-      localStorage.setItem('tenant_session', JSON.stringify(demoTenant));
-      onLoginSuccess(demoTenant);
+
+      localStorage.setItem('tenant_session', JSON.stringify(sessionData));
+      onLoginSuccess(sessionData);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Terjadi kesalahan saat memverifikasi akun.');
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +82,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({ onLoginSuccess
           </div>
           <h2 className="text-xl font-bold text-[#1A2220]">Masuk Portal Penghuni</h2>
           <p className="text-xs text-[#5C6B67] leading-relaxed">
-            Masukkan nomor WhatsApp atau telepon yang terdaftar pada saat reservasi kamar kos.
+            Masukkan nomor WhatsApp atau telepon Anda yang terdaftar pada database sistem kos.
           </p>
         </div>
 
@@ -100,24 +104,11 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({ onLoginSuccess
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="Contoh: 081234567890"
+                placeholder="Contoh: 08123454667"
                 className="w-full pl-10 pr-3.5 py-2.5 text-xs sm:text-sm bg-[#FAF9F6] border border-black/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#12483E]/20 focus:border-[#12483E]"
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[#1A2220] mb-1.5">
-              Nomor Kamar (Opsional)
-            </label>
-            <input
-              type="text"
-              value={roomNumber}
-              onChange={(e) => setRoomNumber(e.target.value)}
-              placeholder="Contoh: 101 atau A02"
-              className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-[#FAF9F6] border border-black/[0.1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#12483E]/20 focus:border-[#12483E]"
-            />
           </div>
 
           <button
@@ -128,7 +119,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({ onLoginSuccess
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Memverifikasi Data...</span>
+                <span>Memeriksa ke Database...</span>
               </>
             ) : (
               <>
@@ -142,7 +133,7 @@ export const TenantLoginForm: React.FC<TenantLoginFormProps> = ({ onLoginSuccess
         <div className="pt-2 border-t border-black/[0.06] text-center">
           <p className="text-[11px] text-[#71807C] flex items-center justify-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Kerahasiaan data sewa & pembayaran terenkripsi aman</span>
+            <span>Hanya nomor aktif yang terverifikasi yang dapat masuk</span>
           </p>
         </div>
       </div>
