@@ -253,6 +253,81 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
 
+        {/* Riwayat Pembayaran Lampau */}
+        <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-black/[0.06] shadow-2xs space-y-4">
+          <div className="flex items-center justify-between border-b border-black/[0.04] pb-3">
+            <h3 className="text-xs sm:text-sm font-bold text-[#1A2220] flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#12483E]" />
+              <span>Riwayat Transaksi & Pembayaran</span>
+            </h3>
+            <span className="text-[10px] sm:text-xs font-semibold text-[#71807C]">
+              {invoices.length} Catatan Tagihan
+            </span>
+          </div>
+
+          {isLoadingInvoices ? (
+            <div className="py-6 flex items-center justify-center gap-2 text-xs text-[#71807C]">
+              <Loader2 className="w-4 h-4 animate-spin text-[#12483E]" />
+              <span>Memuat riwayat transaksi...</span>
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="py-6 text-center text-xs text-[#71807C]">
+              Belum ada riwayat transaksi sebelumnya.
+            </div>
+          ) : (
+            <div className="divide-y divide-black/[0.04]">
+              {invoices.map((inv) => {
+                const isPaid = inv.status === 'paid';
+                return (
+                  <div
+                    key={inv.id}
+                    className="py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#1A2220]">
+                          Periode {inv.periodMonth}
+                        </span>
+                        <span className="text-[10px] text-[#71807C] font-mono">
+                          {inv.invoiceNumber}
+                        </span>
+                      </div>
+                      <p className="text-[10px] sm:text-[11px] text-[#71807C] mt-0.5">
+                        {isPaid && inv.paidAt
+                          ? `Dibayar: ${new Date(inv.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          : `Jatuh tempo: ${inv.dueDate || '-'}`}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3">
+                      <span className="text-xs sm:text-sm font-bold text-[#12483E] font-mono">
+                        Rp {inv.amount.toLocaleString('id-ID')}
+                      </span>
+                      <span
+                        className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isPaid
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}
+                      >
+                        {isPaid ? 'Lunas' : 'Belum Bayar'}
+                      </span>
+                      {isPaid && onViewSuccessReceipt && (
+                        <button
+                          onClick={onViewSuccessReceipt}
+                          className="px-2.5 py-1 text-[10px] font-semibold text-[#12483E] bg-[#EBF3F0] hover:bg-[#DEEBE6] rounded-md transition-colors cursor-pointer"
+                        >
+                          Kwitansi
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Modal Konfirmasi Logout */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-xs">
