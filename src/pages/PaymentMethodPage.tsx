@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeft,
-  QrCode,
-  CreditCard,
   Calendar,
-  ReceiptText,
+  CreditCard,
+  QrCode,
   ChevronRight,
   ShieldCheck,
-  CheckCircle2,
+  Zap,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { PaymentChannel } from '../types';
 
@@ -16,32 +17,71 @@ interface PaymentMethodPageProps {
   onSelectChannel: (channel: PaymentChannel) => void;
 }
 
+declare global {
+  interface Window {
+    snap?: any;
+  }
+}
+
 export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
   onBackToProfile,
   onSelectChannel,
 }) => {
-  const feeBreakdown = [
-    {
-      item: 'Sewa Kamar Pokok',
-      description: 'Termasuk fasilitas kamar standar',
-      amount: 'Rp [Nominal Sewa]',
-    },
-    {
-      item: 'Biaya Utilitas & Listrik',
-      description: 'Sesuai meteran KWh kamar berjalan',
-      amount: 'Rp [Nominal Utilitas]',
-    },
-    {
-      item: 'Iuran Kebersihan & Lingkungan',
-      description: 'Pemeliharaan area komunal',
-      amount: 'Rp [Nominal Iuran]',
-    },
-    {
-      item: 'Koneksi Wi-Fi Fiber Optic',
-      description: 'Akses tanpa batas kuota',
-      amount: '[Termasuk]',
-    },
-  ];
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const savedSession = typeof window !== 'undefined' ? localStorage.getItem('tenant_session') : null;
+  const tenant = savedSession ? JSON.parse(savedSession) : null;
+  const monthlyPrice = tenant?.monthlyPrice ? Number(tenant.monthlyPrice) : 1500000;
+
+  // Trigger Midtrans Snap Popup
+  const handleTriggerSnap = async (preferredMethod?: 'qris' | 'briva') => {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${apiUrl}/payments/midtrans/create-snap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: tenant?.id,
+          amount: monthlyPrice,
+          preferredMethod,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal memulai transaksi Midtrans');
+      }
+
+      if (window.snap) {
+        window.snap.pay(data.token, {
+          onSuccess: function () {
+            onSelectChannel(preferredMethod || 'qris');
+          },
+          onPending: function () {
+            onSelectChannel(preferredMethod || 'qris');
+          },
+          onError: function () {
+            setErrorMessage('Pembayaran gagal atau dibatalkan.');
+          },
+          onClose: function () {
+            console.log('Customer closed the payment popup');
+          },
+        });
+      } else if (data.redirect_url) {
+        window.open(data.redirect_url, '_blank');
+      } else {
+        setErrorMessage('SDK Midtrans Snap belum termuat di browser.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Koneksi ke gateway pembayaran gagal.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="w-full py-4 sm:py-8 pb-20 sm:pb-12">
@@ -60,15 +100,22 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
         {/* Page Title */}
         <div>
           <span className="text-[10px] sm:text-xs font-semibold text-[#12483E] tracking-wider uppercase block">
-            Langkah 1 dari 2
+            Jalur Pembayaran Otomatis
           </span>
           <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-[#1A2220] mt-0.5">
             Pilih Metode Pembayaran
           </h1>
           <p className="text-[11px] sm:text-xs text-[#45524F] mt-0.5">
-            Pilih jalur pembayaran otomatis. Sistem akan memverifikasi transaksi tanpa perlu mengunggah bukti transfer.
+            Transaksi diproses langsung melalui gerbang resmi Midtrans dengan status verifikasi otomatis 24 jam.
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         {/* Total Summary Card */}
         <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-black/[0.06] shadow-2xs">
@@ -78,36 +125,33 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
                 Total Tagihan Sewa
               </span>
               <div className="text-xl sm:text-2xl font-bold text-[#12483E] font-mono tabular-nums mt-0.5">
-                Rp [Total Tagihan]
+                Rp {monthlyPrice.toLocaleString('id-ID')}
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-xs text-[#45524F]">
               <Calendar className="w-3.5 h-3.5 text-[#12483E]" />
-              <span>Jatuh Tempo: <strong>[DD / MM / YYYY]</strong></span>
+              <span>Kamar: <strong>{tenant?.roomNumber || 'A05'}</strong></span>
             </div>
           </div>
 
-          {/* Compact Fee Breakdown */}
-          <div className="mt-3 divide-y divide-black/[0.04]">
-            {feeBreakdown.map((row, idx) => (
-              <div key={idx} className="py-1.5 first:pt-0 flex justify-between text-[11px]">
-                <span className="text-[#71807C]">{row.item}</span>
-                <span className="font-medium text-[#1A2220] font-mono">{row.amount}</span>
-              </div>
-            ))}
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+            <span>Metode Verifikasi</span>
+            <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+              Otomatis (Tanpa Upload Struk)
+            </span>
           </div>
         </div>
 
         {/* Payment Channels Section */}
         <div className="space-y-3">
           <span className="text-xs font-bold text-[#1A2220] block">
-            Pilih Kanal Pembayaran Tersedia:
+            Pilih Opsi Pembayaran Midtrans:
           </span>
 
-          {/* Option 1: QRIS Dedicated Page Card */}
+          {/* Option 1: QRIS Midtrans */}
           <div
-            onClick={() => onSelectChannel('qris')}
+            onClick={() => !isLoading && handleTriggerSnap('qris')}
             className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-black/[0.08] hover:border-[#12483E] hover:shadow-xs transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between gap-3">
@@ -118,18 +162,15 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[#1A2220]">
-                      QRIS (Quick Response Code)
+                      QRIS (GoPay, OVO, ShopeePay, BCA, dll)
                     </h3>
                     <span className="text-[9px] font-semibold text-[#12483E] bg-[#EBF3F0] px-1.5 py-0.2 rounded">
-                      Rekomendasi
+                      Instan
                     </span>
                   </div>
                   <p className="text-[11px] text-[#45524F] mt-0.5">
-                    Scan instan dengan aplikasi m-Banking (BCA, Mandiri, BRI, BNI) atau e-Wallet (GoPay, OVO, DANA, ShopeePay).
+                    Buka pop-up QRIS Midtrans resmi, lalu scan dengan aplikasi e-Wallet atau mobile banking pilihan Anda.
                   </p>
-                  <span className="text-[10px] text-[#71807C] block mt-1">
-                    Bebas biaya admin · Konfirmasi otomatis tanpa unggah bukti
-                  </span>
                 </div>
               </div>
 
@@ -139,9 +180,9 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
             </div>
           </div>
 
-          {/* Option 2: BRIVA Dedicated Page Card */}
+          {/* Option 2: Virtual Account (BRIVA, BCA, BNI, Mandiri) */}
           <div
-            onClick={() => onSelectChannel('briva')}
+            onClick={() => !isLoading && handleTriggerSnap('briva')}
             className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-black/[0.08] hover:border-[#12483E] hover:shadow-xs transition-all cursor-pointer group"
           >
             <div className="flex items-center justify-between gap-3">
@@ -152,18 +193,15 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[#1A2220]">
-                      BRIVA (BRI Virtual Account)
+                      Virtual Account (BRIVA, BCA, BNI, Mandiri)
                     </h3>
                     <span className="text-[9px] font-semibold text-blue-800 bg-blue-50 px-1.5 py-0.2 rounded">
-                      Transfer Bank
+                      Bank Transfer
                     </span>
                   </div>
                   <p className="text-[11px] text-[#45524F] mt-0.5">
-                    Transfer nomor rekening virtual khusus melalui aplikasi BRImo, ATM BRI, atau transfer antar-bank.
+                    Dapatkan nomor Virtual Account resmi dari bank pilihan Anda untuk transfer via m-Banking atau ATM.
                   </p>
-                  <span className="text-[10px] text-[#71807C] block mt-1">
-                    Nominal otomatis cocok · Verifikasi instan 24 jam
-                  </span>
                 </div>
               </div>
 
@@ -174,11 +212,19 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
           </div>
         </div>
 
-        {/* Security & Automation Notice */}
+        {/* Loading Indicator Overlay */}
+        {isLoading && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-emerald-800">
+            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+            <span>Mempersiapkan jendela pembayaran Midtrans...</span>
+          </div>
+        )}
+
+        {/* Security Notice */}
         <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-black/[0.05] flex items-start gap-2.5 text-xs text-[#71807C]">
           <ShieldCheck className="w-4 h-4 text-[#12483E] shrink-0 mt-0.5" />
           <p className="text-[11px] leading-relaxed">
-            Kedua metode pembayaran resmi di atas terhubung langsung dengan sistem pencatatan sewa Senja Living. <strong>Bukti transfer tidak perlu diunggah manual</strong>—sistem langsung menerbitkan bukti pembayaran sukses seketika setelah dana diterima.
+            Pembayaran dijamin aman menggunakan enkripsi TLS Bank Indonesia dan Midtrans. Status pembayaran sewa kamar Anda akan otomatis terverifikasi begitu transaksi berhasil.
           </p>
         </div>
       </div>

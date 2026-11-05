@@ -6,14 +6,12 @@ import { ContactModal } from './components/ContactModal';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PaymentMethodPage } from './pages/PaymentMethodPage';
-import { QrisPaymentPage } from './pages/QrisPaymentPage';
-import { BrivaPaymentPage } from './pages/BrivaPaymentPage';
 import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import { TenantLoginForm } from './components/TenantLoginForm';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<CurrentPage>('beranda');
-  const [selectedChannel, setSelectedChannel] = useState<PaymentChannel>('qris');
+  const [selectedChannel, setSelectedChannel] = useState<PaymentChannel>('midtrans');
   const [isBillPaid, setIsBillPaid] = useState<boolean>(false);
   const [isContactOpen, setIsContactOpen] = useState<boolean>(false);
   const [loggedInTenant, setLoggedInTenant] = useState<any>(null);
@@ -35,19 +33,9 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
 
-  // Active tab indicator for navigation
   const activeNavTab = currentPage === 'beranda' ? 'beranda' : 'profil';
 
   const handleSelectChannel = (channel: PaymentChannel) => {
-    setSelectedChannel(channel);
-    if (channel === 'qris') {
-      setCurrentPage('pembayaran-qris');
-    } else {
-      setCurrentPage('pembayaran-briva');
-    }
-  };
-
-  const handlePaymentSuccess = (channel: PaymentChannel) => {
     setSelectedChannel(channel);
     setIsBillPaid(true);
     setCurrentPage('pembayaran-sukses');
@@ -99,20 +87,6 @@ export default function App() {
           <PaymentMethodPage
             onBackToProfile={() => setCurrentPage('profil')}
             onSelectChannel={handleSelectChannel}
-          />
-        )}
-
-        {currentPage === 'pembayaran-qris' && (
-          <QrisPaymentPage
-            onBackToMethods={() => setCurrentPage('pilih-metode')}
-            onPaymentSuccess={() => handlePaymentSuccess('qris')}
-          />
-        )}
-
-        {currentPage === 'pembayaran-briva' && (
-          <BrivaPaymentPage
-            onBackToMethods={() => setCurrentPage('pilih-metode')}
-            onPaymentSuccess={() => handlePaymentSuccess('briva')}
           />
         )}
 

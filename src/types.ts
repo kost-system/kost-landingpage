@@ -2,13 +2,11 @@ export type CurrentPage =
   | 'beranda'
   | 'profil'
   | 'pilih-metode'
-  | 'pembayaran-qris'
-  | 'pembayaran-briva'
   | 'pembayaran-sukses';
 
 export type ActiveTab = 'beranda' | 'profil';
 
-export type PaymentChannel = 'qris' | 'briva';
+export type PaymentChannel = 'qris' | 'briva' | 'midtrans';
 
 export interface PhotoSlide {
   id: string;

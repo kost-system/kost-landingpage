@@ -27,20 +27,35 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
 }) => {
   const [isDownloaded, setIsDownloaded] = useState<boolean>(false);
 
+  // Ambil data nyata penghuni yang login dari session
+  const savedSession = typeof window !== 'undefined' ? localStorage.getItem('tenant_session') : null;
+  const tenant = savedSession ? JSON.parse(savedSession) : null;
+
+  const tenantName = tenant?.name || 'Jhon Doe';
+  const roomNumber = tenant?.roomNumber || 'A05';
+  const roomType = tenant?.roomType || 'Kamar Mandi Dalam + AC';
+  const monthlyPrice = tenant?.monthlyPrice ? Number(tenant.monthlyPrice) : 1500000;
+
+  // Waktu pelunasan dinamis
+  const currentDate = new Date().toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const currentMonthYear = new Date().toLocaleDateString('id-ID', {
+    month: 'long',
+    year: 'numeric',
+  });
+  const trxNumber = `TRX-MID-${Date.now().toString().slice(-6)}`;
+
   const handleDownloadReceipt = () => {
     setIsDownloaded(true);
     setTimeout(() => setIsDownloaded(false), 2500);
   };
 
   const channelLabel = paymentChannel === 'qris'
-    ? 'QRIS Standar Nasional (Scan QR)'
-    : 'BRIVA (BRI Virtual Account)';
-
-  const channelIcon = paymentChannel === 'qris'
-    ? QrCode
-    : CreditCard;
-
-  const ChannelIconComponent = channelIcon;
+    ? 'Midtrans QRIS (GoPay/ShopeePay/BCA)'
+    : 'Midtrans Virtual Account (BRIVA/BCA/BNI)';
 
   return (
     <div className="w-full py-6 sm:py-10 pb-20 sm:pb-14">
@@ -60,7 +75,7 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
           </h1>
 
           <p className="text-xs text-[#45524F] max-w-sm mx-auto leading-relaxed">
-            Terima kasih, tagihan sewa kamar Anda telah diverifikasi secara otomatis dan tercatat lunas dalam sistem Senja Living.
+            Terima kasih, tagihan sewa kamar Anda telah diverifikasi otomatis melalui Midtrans Gateway dan tercatat lunas dalam sistem.
           </p>
         </div>
 
@@ -77,9 +92,9 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-1 text-[10px] font-semibold text-[#12483E] bg-[#EBF3F0] px-2 py-0.5 rounded-md">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>[LUNAS / TERVERIFIKASI]</span>
+            <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>LUNAS / TERVERIFIKASI</span>
             </div>
           </div>
 
@@ -87,62 +102,67 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
           <div className="space-y-2.5 text-xs">
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
               <span className="text-[#71807C]">Nomor Transaksi</span>
-              <span className="font-semibold text-[#1A2220] font-mono">[TRX-2026-XXXX]</span>
+              <span className="font-semibold text-[#1A2220] font-mono">{trxNumber}</span>
             </div>
 
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
               <span className="text-[#71807C]">Waktu Pelunasan</span>
-              <span className="font-medium text-[#1A2220] font-mono">[DD / MM / YYYY - 21.30 WIB]</span>
+              <span className="font-medium text-[#1A2220] font-mono">{currentDate}</span>
             </div>
 
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
               <span className="text-[#71807C]">Metode Pembayaran</span>
-              <span className="font-semibold text-[#1A2220] inline-flex items-center gap-1">
-                <ChannelIconComponent className="w-3.5 h-3.5 text-[#12483E]" />
+              <span className="font-semibold text-[#1A2220] inline-flex items-center gap-1.5">
+                {paymentChannel === 'qris' ? (
+                  <QrCode className="w-3.5 h-3.5 text-[#12483E]" />
+                ) : (
+                  <CreditCard className="w-3.5 h-3.5 text-[#12483E]" />
+                )}
                 <span>{channelLabel}</span>
               </span>
             </div>
 
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
-              <span className="text-[#71807C]">Penghuni</span>
-              <span className="font-semibold text-[#1A2220]">[Nama Penghuni]</span>
+              <span className="text-[#71807C]">Nama Penghuni</span>
+              <span className="font-bold text-[#1A2220]">{tenantName}</span>
             </div>
 
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
               <span className="text-[#71807C]">Unit Kamar</span>
-              <span className="font-semibold text-[#12483E]">Kamar [Nomor Kamar] · [Tipe Kamar]</span>
+              <span className="font-semibold text-[#12483E]">
+                Kamar {roomNumber} • {roomType}
+              </span>
             </div>
 
             <div className="flex justify-between items-center py-1 border-b border-black/[0.03]">
               <span className="text-[#71807C]">Periode Sewa</span>
-              <span className="font-medium text-[#1A2220]">[Bulan Berjalan & Tahun]</span>
+              <span className="font-medium text-[#1A2220]">{currentMonthYear}</span>
             </div>
           </div>
 
           {/* Total Paid Block */}
           <div className="p-3.5 rounded-xl bg-[#FAF9F6] border border-black/[0.05] flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-[#71807C] block">Jumlah Total Dilunasi</span>
+              <span className="text-[10px] text-[#71807C] block font-medium">Jumlah Total Dilunasi</span>
               <span className="text-base sm:text-lg font-bold text-[#12483E] font-mono tabular-nums block">
-                Rp [Total Tagihan]
+                Rp {monthlyPrice.toLocaleString('id-ID')}
               </span>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] text-[#71807C] block">Biaya Layanan</span>
-              <span className="text-xs font-semibold text-[#1A2220] block">Rp 0 (Gratis)</span>
+              <span className="text-[10px] text-[#71807C] block font-medium">Biaya Layanan</span>
+              <span className="text-xs font-semibold text-emerald-700 block">Rp 0 (Gratis)</span>
             </div>
           </div>
 
           {/* Security Note */}
-          <p className="text-[10px] text-[#71807C] text-center pt-1">
-            Kwitansi digital ini sah dan diterbitkan secara elektronik oleh Senja Living tanpa memerlukan tanda tangan basah.
+          <p className="text-[10px] text-[#71807C] text-center pt-1 leading-relaxed">
+            Kwitansi digital ini sah dan diterbitkan secara elektronik oleh sistem Senja Living melalui Midtrans Payment Gateway.
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-2.5">
-          {/* Download Receipt Button */}
           <button
             onClick={handleDownloadReceipt}
             className="w-full py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold text-[#12483E] bg-[#EBF3F0] hover:bg-[#DEEBE6] active:scale-[0.99] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer min-h-[42px]"
@@ -160,7 +180,6 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
             )}
           </button>
 
-          {/* Return Navigation Buttons */}
           <div className="grid grid-cols-2 gap-2.5 pt-1">
             <button
               onClick={onGoToProfile}
