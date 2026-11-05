@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   CreditCard,
@@ -9,6 +9,10 @@ import {
   Smartphone,
   ShieldCheck,
   Building2,
+  RefreshCw,
+  AlertCircle,
+  Loader2,
+  Info,
 } from 'lucide-react';
 
 interface BrivaPaymentPageProps {
@@ -22,11 +26,85 @@ export const BrivaPaymentPage: React.FC<BrivaPaymentPageProps> = ({
 }) => {
   const [copiedBriva, setCopiedBriva] = useState<boolean>(false);
   const [activeGuideTab, setActiveGuideTab] = useState<'brimo' | 'atm' | 'bank_lain'>('brimo');
+  const [isChecking, setIsChecking] = useState<boolean>(false);
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
 
-  const brivaNumber = '[12800 8821 0000 xxxx]';
+  // Real Midtrans States
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [brivaNumber, setBrivaNumber] = useState<string>('');
+  const [orderId, setOrderId] = useState<string>('');
+  const [grossAmount, setGrossAmount] = useState<number>(1500000);
+  const [expireTime, setExpireTime] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // 1. Fetch Real BRIVA from Midtrans Core API on mount
+  useEffect(() => {
+    const fetchBriva = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
+      try {
+        const savedSession = localStorage.getItem('tenant_session');
+        const tenant = savedSession ? JSON.parse(savedSession) : null;
+        const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+
+        const res = await fetch(`${apiUrl}/payments/midtrans/charge-briva`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: tenant?.id,
+            amount: tenant?.monthlyPrice || 1500000,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Gagal membuat nomor BRIVA dari Midtrans');
+        }
+
+        setBrivaNumber(data.vaNumber || '');
+        setOrderId(data.orderId || '');
+        setGrossAmount(Number(data.grossAmount) || 1500000);
+        setExpireTime(data.expireTime || '');
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Koneksi ke gateway BRIVA gagal.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBriva();
+  }, []);
+
+  // 2. Real-time Status Check
+  const handleCheckBriva = async () => {
+    if (!orderId) return;
+    setIsChecking(true);
+    setCheckMessage(null);
+
+    try {
+      const apiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${apiUrl}/payments/midtrans/status/${orderId}`);
+      const data = await res.json();
+
+      if (data.transaction_status === 'settlement' || data.transaction_status === 'capture') {
+        setCheckMessage('Pembayaran Berhasil! Tagihan Anda telah lunas.');
+        setTimeout(() => {
+          onPaymentSuccess();
+        }, 1500);
+      } else if (data.transaction_status === 'pending') {
+        setCheckMessage('Status: Menunggu Pembayaran. Silakan selesaikan transfer ke nomor BRIVA di atas.');
+      } else {
+        setCheckMessage(`Status: ${data.transaction_status || 'Belum terbayar'}. Silakan coba kembali.`);
+      }
+    } catch {
+      setCheckMessage('Belum ada dana masuk yang terdeteksi. Silakan coba beberapa saat lagi.');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const handleCopyBriva = () => {
-    navigator.clipboard?.writeText(brivaNumber.replace(/[[\] ]/g, ''));
+    navigator.clipboard?.writeText(brivaNumber.replace(/[^0-9]/g, ''));
     setCopiedBriva(true);
     setTimeout(() => setCopiedBriva(false), 2000);
   };
@@ -38,207 +116,188 @@ export const BrivaPaymentPage: React.FC<BrivaPaymentPageProps> = ({
         <div>
           <button
             onClick={onBackToMethods}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#12483E] bg-white hover:bg-[#EBF3F0] border border-[#12483E]/20 rounded-xl transition-all shadow-2xs cursor-pointer min-h-[36px]"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#12483E] hover:text-[#0E3A32] transition-colors cursor-pointer group"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Pilih Metode Lain</span>
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Kembali ke Pilihan Metode</span>
           </button>
         </div>
 
         {/* Page Title */}
         <div>
           <span className="text-[10px] sm:text-xs font-semibold text-[#12483E] tracking-wider uppercase block">
-            Bank Rakyat Indonesia
+            BRI Virtual Account Resmi
           </span>
           <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-[#1A2220] mt-0.5">
-            Pembayaran BRIVA (Virtual Account)
+            Pembayaran BRIVA Real-Time
           </h1>
           <p className="text-[11px] sm:text-xs text-[#45524F] mt-0.5">
-            Gunakan kode virtual account unik di bawah ini untuk transfer langsung melalui BRImo, ATM, atau antar bank.
+            Transfer tepat sesuai total nominal ke nomor BRIVA yang tertera di bawah.
           </p>
         </div>
 
-        {/* Main BRIVA Detail Card */}
-        <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white border border-black/[0.06] shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-black/[0.06]">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center font-bold text-xs">
+        {errorMessage && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* BRIVA Info Card */}
+        <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 border border-black/[0.06] shadow-2xs space-y-5">
+          {/* Header Amount */}
+          <div className="p-4 bg-[#FAF9F6] border border-black/[0.05] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-semibold text-[#71807C] block uppercase tracking-wider">
+                Total Tagihan Sewa
+              </span>
+              <span className="text-xl sm:text-2xl font-bold text-[#1A2220]">
+                Rp {grossAmount.toLocaleString('id-ID')}
+              </span>
+            </div>
+            <div className="sm:text-right">
+              <span className="text-[10px] text-[#71807C] block">Kode Referensi Order</span>
+              <span className="text-xs font-mono font-semibold text-[#12483E]">
+                {orderId || 'Memuat...'}
+              </span>
+            </div>
+          </div>
+
+          {/* Virtual Account Number Box */}
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-[#EBF3F0] to-[#E3EDE8] border border-[#12483E]/20 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-[#12483E] flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4" />
+                <span>Nomor Virtual Account BRIVA (Midtrans)</span>
+              </span>
+              <span className="text-[10px] font-bold text-[#12483E] bg-white px-2 py-0.5 rounded-md border border-[#12483E]/20">
                 BRI
-              </div>
-              <div>
-                <span className="text-xs font-bold text-[#1A2220] block">
-                  BRIVA (BRI Virtual Account)
-                </span>
-                <span className="text-[10px] text-[#71807C] block">
-                  Nomor Akun Tagihan Resmi Kost
-                </span>
-              </div>
+              </span>
             </div>
 
-            <span className="text-[10px] font-semibold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-md">
-              Verifikasi Otomatis
-            </span>
-          </div>
-
-          {/* Virtual Account Box */}
-          <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF9F6] border border-black/[0.06] space-y-2">
-            <span className="text-[10px] sm:text-[11px] font-medium text-[#71807C] block">
-              Nomor Virtual Account BRIVA
-            </span>
-
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-base sm:text-xl font-bold text-[#12483E] font-mono tracking-wide tabular-nums">
-                {brivaNumber}
-              </span>
-
-              <button
-                onClick={handleCopyBriva}
-                className="px-3 py-1.5 text-xs font-semibold text-[#12483E] bg-white border border-[#12483E]/20 hover:bg-[#EBF3F0] rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                {copiedBriva ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-[#12483E]" />
-                    <span>Disalin</span>
-                  </>
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="text-base sm:text-2xl font-mono font-extrabold text-[#1A2220] tracking-wider select-all">
+                {isLoading ? (
+                  <span className="text-slate-400 text-sm font-sans font-medium flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Membuat nomor BRIVA resmi...</span>
+                  </span>
                 ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Salin Nomor</span>
-                  </>
+                  brivaNumber || 'Nomor BRIVA Tidak Tersedia'
                 )}
-              </button>
-            </div>
-
-            <div className="pt-2 border-t border-black/[0.04] grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-[10px] text-[#71807C] block">Nama Pelanggan</span>
-                <span className="font-semibold text-[#1A2220] block">[Nama Penghuni]</span>
               </div>
-              <div>
-                <span className="text-[10px] text-[#71807C] block">Unit Kamar</span>
-                <span className="font-semibold text-[#1A2220] block">Kamar [Nomor Kamar]</span>
-              </div>
+
+              {brivaNumber && (
+                <button
+                  onClick={handleCopyBriva}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-[#12483E] hover:bg-[#0E3A32] rounded-lg transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                >
+                  {copiedBriva ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBriva ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              )}
             </div>
+
+            {expireTime && (
+              <p className="text-[11px] text-[#556964] pt-1">
+                Batas waktu pembayaran: <strong>{expireTime}</strong>
+              </p>
+            )}
           </div>
 
-          {/* Amount and Due date info */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs">
-            <div>
-              <span className="text-[10px] text-[#71807C] block">Total Pembayaran</span>
-              <span className="text-sm sm:text-base font-bold text-[#12483E] font-mono tabular-nums">
-                Rp [Total Tagihan]
-              </span>
+          {/* Status Message */}
+          {checkMessage && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center gap-2">
+              <Info className="w-4 h-4 shrink-0" />
+              <span>{checkMessage}</span>
             </div>
-
-            <div className="text-left sm:text-right">
-              <span className="text-[10px] text-[#71807C] block">Batas Waktu Pembayaran</span>
-              <span className="font-medium text-[#1A2220]">
-                [Tanggal Jatuh Tempo] · 23.59 WIB
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* BRIVA Payment Guides Tabs */}
-        <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-black/[0.06] shadow-2xs space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-black/[0.06]">
-            <h3 className="text-xs sm:text-sm font-bold text-[#1A2220]">
-              Petunjuk Transfer BRIVA
-            </h3>
-
-            {/* Guide Switcher */}
-            <div className="inline-flex p-0.5 bg-[#F0EFEB] rounded-lg text-xs">
-              <button
-                onClick={() => setActiveGuideTab('brimo')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                  activeGuideTab === 'brimo'
-                    ? 'bg-white text-[#12483E] shadow-2xs'
-                    : 'text-[#45524F] hover:text-[#1A2220]'
-                }`}
-              >
-                BRImo
-              </button>
-              <button
-                onClick={() => setActiveGuideTab('atm')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                  activeGuideTab === 'atm'
-                    ? 'bg-white text-[#12483E] shadow-2xs'
-                    : 'text-[#45524F] hover:text-[#1A2220]'
-                }`}
-              >
-                ATM BRI
-              </button>
-              <button
-                onClick={() => setActiveGuideTab('bank_lain')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                  activeGuideTab === 'bank_lain'
-                    ? 'bg-white text-[#12483E] shadow-2xs'
-                    : 'text-[#45524F] hover:text-[#1A2220]'
-                }`}
-              >
-                Bank Lain
-              </button>
-            </div>
-          </div>
-
-          {/* Tab 1: BRImo Guide */}
-          {activeGuideTab === 'brimo' && (
-            <ol className="space-y-1.5 text-[11px] text-[#45524F] list-decimal list-inside">
-              <li>Buka dan masuk ke aplikasi <strong>BRImo</strong> di ponsel Anda.</li>
-              <li>Pilih menu <strong>Tagihan</strong> &gt; pilih <strong>BRIVA</strong>.</li>
-              <li>Pilih <strong>Pembayaran Baru</strong> lalu masukkan Nomor BRIVA: <strong>{brivaNumber}</strong>.</li>
-              <li>Pastikan nama pelanggan <strong>[Nama Penghuni]</strong> dan jumlah tagihan <strong>Rp [Total Tagihan]</strong> sudah sesuai.</li>
-              <li>Masukkan PIN BRImo Anda dan simpan tanda bukti transaksi.</li>
-            </ol>
           )}
 
-          {/* Tab 2: ATM BRI Guide */}
-          {activeGuideTab === 'atm' && (
-            <ol className="space-y-1.5 text-[11px] text-[#45524F] list-decimal list-inside">
-              <li>Masukkan kartu ATM BRI dan PIN 6-digit Anda.</li>
-              <li>Pilih menu <strong>Transaksi Lain</strong> &gt; pilih <strong>Pembayaran</strong> &gt; pilih <strong>Lainnya</strong>.</li>
-              <li>Pilih menu <strong>BRIVA</strong>.</li>
-              <li>Masukkan Nomor Virtual Account: <strong>{brivaNumber}</strong> lalu tekan Benar.</li>
-              <li>Periksa konfirmasi data di layar ATM dan selesaikan pembayaran.</li>
-            </ol>
-          )}
-
-          {/* Tab 3: Transfer Antar Bank Guide */}
-          {activeGuideTab === 'bank_lain' && (
-            <ol className="space-y-1.5 text-[11px] text-[#45524F] list-decimal list-inside">
-              <li>Buka aplikasi m-Banking atau ATM bank lain Anda (BCA, Mandiri, BNI, dll).</li>
-              <li>Pilih menu <strong>Transfer Antar Bank</strong>.</li>
-              <li>Pilih bank tujuan: <strong>Bank BRI (Kode: 002)</strong>.</li>
-              <li>Masukkan nomor rekening tujuan berupa Nomor BRIVA: <strong>{brivaNumber}</strong>.</li>
-              <li>Masukkan nominal tepat: <strong>Rp [Total Tagihan]</strong> lalu konfirmasi transfer.</li>
-            </ol>
-          )}
-
-          <div className="pt-2 border-t border-black/[0.04] text-[10px] text-[#71807C] flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#12483E] shrink-0" />
-            <span>Sistem BRIVA mendeteksi pelunasan secara instan tanpa perlu unggah struk manual.</span>
-          </div>
-        </div>
-
-        {/* PRIMARY ACTION: Selesai Bayar -> Langsung Menuju Halaman Bukti Sukses */}
-        <div className="p-4 sm:p-5 rounded-xl sm:rounded-2xl bg-white border border-[#12483E]/20 shadow-xs">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-            <div>
-              <span className="text-xs font-bold text-[#1A2220] block">
-                Sudah menyelesaikan transfer BRIVA?
-              </span>
-              <span className="text-[11px] text-[#71807C] block mt-0.5">
-                Konfirmasi transaksi untuk membuka kwitansi bukti pembayaran resmi Anda.
-              </span>
-            </div>
-
+          {/* Action Button */}
+          <div className="pt-2 border-t border-black/[0.06]">
             <button
-              onClick={onPaymentSuccess}
-              className="w-full sm:w-auto px-5 py-2.5 sm:px-6 sm:py-2.5 text-xs sm:text-sm font-semibold text-white bg-[#12483E] hover:bg-[#0A2E28] active:scale-[0.98] rounded-xl transition-all shadow-2xs inline-flex items-center justify-center gap-2 cursor-pointer min-h-[42px]"
+              onClick={handleCheckBriva}
+              disabled={isChecking || isLoading}
+              className="w-full py-3 bg-[#12483E] hover:bg-[#0E3A32] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Saya Sudah Membayar via BRIVA</span>
+              {isChecking ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memeriksa ke Gateway BRIVA...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Saya Sudah Transfer (Cek Status)</span>
+                </>
+              )}
             </button>
+          </div>
+        </div>
+
+        {/* Petunjuk Pembayaran Tabs */}
+        <div className="bg-white rounded-xl sm:rounded-2xl p-5 border border-black/[0.06] shadow-2xs space-y-4">
+          <h3 className="text-xs sm:text-sm font-bold text-[#1A2220]">
+            Panduan Cara Bayar BRIVA
+          </h3>
+          <div className="flex gap-2 border-b border-black/[0.06] pb-2 text-xs font-semibold">
+            <button
+              onClick={() => setActiveGuideTab('brimo')}
+              className={`pb-1 px-2 border-b-2 transition-all ${
+                activeGuideTab === 'brimo'
+                  ? 'border-[#12483E] text-[#12483E]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              BRImo
+            </button>
+            <button
+              onClick={() => setActiveGuideTab('atm')}
+              className={`pb-1 px-2 border-b-2 transition-all ${
+                activeGuideTab === 'atm'
+                  ? 'border-[#12483E] text-[#12483E]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              ATM BRI
+            </button>
+            <button
+              onClick={() => setActiveGuideTab('bank_lain')}
+              className={`pb-1 px-2 border-b-2 transition-all ${
+                activeGuideTab === 'bank_lain'
+                  ? 'border-[#12483E] text-[#12483E]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Bank Lain
+            </button>
+          </div>
+
+          <div className="text-xs text-[#556964] space-y-2 leading-relaxed">
+            {activeGuideTab === 'brimo' && (
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Buka aplikasi <strong>BRImo</strong> lalu login.</li>
+                <li>Pilih menu <strong>Tagihan</strong> &gt; <strong>BRIVA</strong>.</li>
+                <li>Masukkan nomor Virtual Account di atas dan klik <strong>Lanjutkan</strong>.</li>
+                <li>Periksa detail tagihan, lalu masukkan PIN transaksi Anda.</li>
+              </ol>
+            )}
+            {activeGuideTab === 'atm' && (
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Masukkan kartu ATM dan PIN di mesin ATM BRI.</li>
+                <li>Pilih menu <strong>Transaksi Lain</strong> &gt; <strong>Pembayaran</strong> &gt; <strong>Lainnya</strong> &gt; <strong>BRIVA</strong>.</li>
+                <li>Masukkan nomor Virtual Account BRIVA Anda.</li>
+                <li>Konfirmasi pembayaran lalu simpan struk transaksi.</li>
+              </ol>
+            )}
+            {activeGuideTab === 'bank_lain' && (
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Buka mobile banking bank Anda (BCA, Mandiri, BNI, dll).</li>
+                <li>Pilih <strong>Transfer Antar Bank</strong> &gt; Bank Tujuan: <strong>BRI (002)</strong>.</li>
+                <li>Masukkan nomor rekening tujuan dengan nomor BRIVA di atas.</li>
+                <li>Masukkan nominal yang tepat dan selesaikan transaksi.</li>
+              </ol>
+            )}
           </div>
         </div>
       </div>
