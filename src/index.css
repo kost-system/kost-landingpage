@@ -22,3 +22,17 @@ body {
   background-color: #FAF9F6;
   color: #1A2220;
 }
+
+@media print {
+  body {
+    background-color: #ffffff;
+  }
+  header, footer, nav, .no-print {
+    display: none !important;
+  }
+  .print-receipt {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}

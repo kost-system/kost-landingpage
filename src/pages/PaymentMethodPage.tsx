@@ -58,17 +58,53 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
 
       if (window.snap) {
         window.snap.pay(data.token, {
-          onSuccess: function () {
+          onSuccess: function (result: any) {
+            console.log('Payment success callback:', result);
             onSelectChannel(preferredMethod || 'qris');
           },
-          onPending: function () {
-            onSelectChannel(preferredMethod || 'qris');
+          onPending: function (result: any) {
+            console.log('Payment pending callback:', result);
+            // Cek status ke server untuk memastikan apakah transaksi sudah settlement
+            if (data.orderId) {
+              fetch(`${apiUrl}/payments/midtrans/status/${data.orderId}`)
+                .then((r) => r.json())
+                .then((statusData) => {
+                  if (statusData.transaction_status === 'settlement' || statusData.transaction_status === 'capture') {
+                    onSelectChannel(preferredMethod || 'qris');
+                  } else {
+                    setErrorMessage('Transaksi masih menunggu penyelesaian pembayaran.');
+                  }
+                })
+                .catch(() => {
+                  setErrorMessage('Transaksi belum selesai dibayar.');
+                });
+            } else {
+              setErrorMessage('Transaksi belum selesai.');
+            }
           },
-          onError: function () {
+          onError: function (err: any) {
+            console.error('Payment error:', err);
             setErrorMessage('Pembayaran gagal atau dibatalkan.');
           },
           onClose: function () {
-            console.log('Customer closed the payment popup');
+            // Pengguna menutup popup snap tanpa menyelesaikan pembayaran
+            // Verifikasi status ke backend sebelum memutuskan: jika belum settlement, JANGAN dialihkan ke sukses
+            if (data.orderId) {
+              fetch(`${apiUrl}/payments/midtrans/status/${data.orderId}`)
+                .then((r) => r.json())
+                .then((statusData) => {
+                  if (statusData.transaction_status === 'settlement' || statusData.transaction_status === 'capture') {
+                    onSelectChannel(preferredMethod || 'qris');
+                  } else {
+                    setErrorMessage('Jendela pembayaran ditutup sebelum transaksi diselesaikan.');
+                  }
+                })
+                .catch(() => {
+                  setErrorMessage('Jendela pembayaran ditutup.');
+                });
+            } else {
+              setErrorMessage('Jendela pembayaran ditutup.');
+            }
           },
         });
       } else if (data.redirect_url) {

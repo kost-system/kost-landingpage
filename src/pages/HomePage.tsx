@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { PhotoSlider } from '../components/PhotoSlider';
 import { PhotoSlide } from '../types';
+import { landingApi, Room, KostSettings } from '../api';
 
 import facadeImg from '../assets/images/kost_modern_facade_1792641908559.jpg';
 import bedroomImg from '../assets/images/kost_bedroom_interior_1792642350837.jpg';
@@ -31,6 +32,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigateToProfile,
 }) => {
   const [selectedRoomIndex, setSelectedRoomIndex] = React.useState<number>(0);
+  const [rooms, setRooms] = React.useState<Room[]>([]);
+  const [settings, setSettings] = React.useState<KostSettings | null>(null);
+
+  React.useEffect(() => {
+    landingApi.getRooms().then(setRooms);
+    landingApi.getSettings().then(setSettings);
+  }, []);
 
   const photoSlides: PhotoSlide[] = [
     {
@@ -96,14 +104,29 @@ export const HomePage: React.FC<HomePageProps> = ({
     },
   ];
 
+  const standardRooms = rooms.filter(
+    (r) => r.type.toLowerCase().includes('standar') || !r.type.toLowerCase().includes('deluxe')
+  );
+  const deluxeRooms = rooms.filter((r) => r.type.toLowerCase().includes('deluxe'));
+
+  const minStandardPrice = standardRooms.length > 0 ? Math.min(...standardRooms.map((r) => r.monthlyPrice)) : 1500000;
+  const availableStandardCount = standardRooms.filter((r) => r.status === 'available').length;
+
+  const minDeluxePrice = deluxeRooms.length > 0 ? Math.min(...deluxeRooms.map((r) => r.monthlyPrice)) : 2200000;
+  const availableDeluxeCount = deluxeRooms.filter((r) => r.status === 'available').length;
+
+  const formatPrice = (val: number) => {
+    return 'Rp ' + val.toLocaleString('id-ID');
+  };
+
   const roomTiers = [
     {
       id: 'standar',
       tierTitle: 'Kamar Tipe Standar',
       dimensions: '3 × 4 Meter',
       description: 'Pilihan fungsional untuk hunian personal yang tenang dan nyaman.',
-      ratePlaceholder: 'Rp [Nominal Sewa] / bulan',
-      depositPlaceholder: 'Rp [Nominal Deposit]',
+      ratePlaceholder: `${formatPrice(minStandardPrice)} / bulan`,
+      depositPlaceholder: formatPrice(500000),
       features: [
         'Kamar mandi dalam dengan shower',
         'AC inverter hemat daya',
@@ -112,15 +135,15 @@ export const HomePage: React.FC<HomePageProps> = ({
         'Lemari pakaian 2 pintu & cermin',
         'Jendela sirkulasi udara alami',
       ],
-      availabilityStatus: '[Status: Tersedia]',
+      availabilityStatus: availableStandardCount > 0 ? `Tersedia (${availableStandardCount} unit)` : 'Penuh (Waiting List)',
     },
     {
       id: 'deluxe',
       tierTitle: 'Kamar Tipe Deluxe',
       dimensions: '4 × 4.5 Meter',
       description: 'Ruang lebih luas dengan pencahayaan alami optimal dan balkon.',
-      ratePlaceholder: 'Rp [Nominal Sewa] / bulan',
-      depositPlaceholder: 'Rp [Nominal Deposit]',
+      ratePlaceholder: `${formatPrice(minDeluxePrice)} / bulan`,
+      depositPlaceholder: formatPrice(1000000),
       features: [
         'Kamar mandi dalam + pemanas air (water heater)',
         'AC 1 PK & ventilasi ganda',
@@ -129,7 +152,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         'Smart TV monitor siap pakai',
         'Akses balkon santai pribadi',
       ],
-      availabilityStatus: '[Status: Konfirmasi Pengelola]',
+      availabilityStatus: availableDeluxeCount > 0 ? `Tersedia (${availableDeluxeCount} unit)` : 'Konfirmasi Pengelola',
     },
   ];
 
@@ -385,10 +408,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                       Alamat Lengkap Hunian
                     </span>
                     <p className="text-[11px] text-[#45524F] mt-0.5 leading-relaxed">
-                      [Jl. Nama Jalan Kost No. XX, Kelurahan, Kecamatan, Kota / Wilayah]
+                      {settings?.address || 'Jl. Flamboyan No. 12, Senayan, Jakarta Selatan'}
                     </p>
                     <span className="text-[10px] text-[#71807C] block mt-1">
-                      Titik Patokan: [Dekat Landmark / Gedung Terkenal]
+                      Properti Resmi: {settings?.kostName || 'Senja Living'} · Akses 24 Jam
                     </span>
                   </div>
                 </div>

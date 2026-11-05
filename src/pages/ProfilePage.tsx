@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Home,
@@ -17,7 +17,9 @@ import {
   CreditCard,
   CheckCircle2,
   Mail,
+  Loader2,
 } from 'lucide-react';
+import { landingApi, Invoice } from '../api';
 
 interface ProfilePageProps {
   tenant: any;
@@ -39,6 +41,28 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
   const [showContractNotice, setShowContractNotice] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState<boolean>(true);
+
+  // Ambil tagihan riil dari backend Supabase
+  useEffect(() => {
+    if (tenant?.id) {
+      setIsLoadingInvoices(true);
+      landingApi.getInvoicesByTenant(tenant.id)
+        .then((data) => {
+          setInvoices(data);
+        })
+        .finally(() => {
+          setIsLoadingInvoices(false);
+        });
+    }
+  }, [tenant?.id]);
+
+  // Cek tagihan bulan berjalan
+  const currentPeriod = new Date().toISOString().slice(0, 7);
+  const currentInvoice = invoices.find((inv) => inv.periodMonth === currentPeriod) || invoices[0];
+  const isInvoicePaid = isPaid || (currentInvoice ? currentInvoice.status === 'paid' : false);
 
   // Ambil data nyata yang login dari Supabase/Database
   const tenantName = tenant?.name || 'Penghuni Kos';
@@ -174,17 +198,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <div className="flex items-center justify-between border-b border-black/[0.04] pb-3">
             <h3 className="text-xs sm:text-sm font-bold text-[#1A2220] flex items-center gap-2">
               <ReceiptText className="w-4 h-4 text-[#12483E]" />
-              <span>Tagihan Sewa Bulan Berjalan</span>
+              <span>Tagihan Sewa Bulan Berjalan ({currentPeriod})</span>
             </h3>
-            <span
-              className={`text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                isPaid
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-amber-50 text-amber-800 border border-amber-200'
-              }`}
-            >
-              {isPaid ? 'Lunas Terverifikasi' : 'Menunggu Pembayaran'}
-            </span>
+            {isLoadingInvoices ? (
+              <span className="text-[10px] text-[#71807C] flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" /> Memeriksa...
+              </span>
+            ) : (
+              <span
+                className={`text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  isInvoicePaid
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                }`}
+              >
+                {isInvoicePaid ? 'Lunas Terverifikasi' : 'Menunggu Pembayaran'}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#FAF9F6] p-3.5 rounded-xl border border-black/[0.04]">
@@ -193,20 +223,31 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 Tagihan Sewa Kamar {roomNumber}
               </p>
               <p className="text-[11px] text-[#71807C] mt-0.5">
-                Batas jatuh tempo: Tanggal 10 setiap bulan
+                {isInvoicePaid && currentInvoice?.paidAt
+                  ? `Dibayar pada: ${new Date(currentInvoice.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                  : 'Batas jatuh tempo: Tanggal 10 setiap bulan'}
               </p>
             </div>
             <div className="text-left sm:text-right w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between gap-2">
               <span className="text-sm sm:text-base font-extrabold text-[#12483E]">
-                {monthlyPrice}
+                {currentInvoice?.amount ? `Rp ${currentInvoice.amount.toLocaleString('id-ID')}` : monthlyPrice}
               </span>
-              {!isPaid && (
+              {!isInvoicePaid ? (
                 <button
                   onClick={onNavigateToPayment}
                   className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#12483E] hover:bg-[#0E3A32] rounded-lg transition-colors cursor-pointer shadow-2xs"
                 >
                   Bayar Sekarang
                 </button>
+              ) : (
+                onViewSuccessReceipt && (
+                  <button
+                    onClick={onViewSuccessReceipt}
+                    className="px-3 py-1 text-xs font-semibold text-[#12483E] bg-[#EBF3F0] hover:bg-[#DEEBE6] rounded-lg transition-colors cursor-pointer"
+                  >
+                    Lihat Bukti
+                  </button>
+                )
               )}
             </div>
           </div>

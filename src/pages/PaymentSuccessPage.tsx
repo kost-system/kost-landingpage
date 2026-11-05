@@ -50,7 +50,11 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
 
   const handleDownloadReceipt = () => {
     setIsDownloaded(true);
-    setTimeout(() => setIsDownloaded(false), 2500);
+    // Jalankan dialog browser print / PDF resmi
+    setTimeout(() => {
+      window.print();
+      setIsDownloaded(false);
+    }, 300);
   };
 
   const channelLabel = paymentChannel === 'qris'
@@ -80,7 +84,7 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
         </div>
 
         {/* Digital Official Receipt Card */}
-        <div className="p-4 sm:p-6 rounded-2xl bg-white border border-black/[0.08] shadow-xs space-y-4 relative overflow-hidden">
+        <div className="print-receipt p-4 sm:p-6 rounded-2xl bg-white border border-black/[0.08] shadow-xs space-y-4 relative overflow-hidden">
           {/* Receipt Header Badge */}
           <div className="flex items-center justify-between pb-3 border-b border-black/[0.06]">
             <div>
@@ -165,22 +169,22 @@ export const PaymentSuccessPage: React.FC<PaymentSuccessPageProps> = ({
         <div className="space-y-2.5">
           <button
             onClick={handleDownloadReceipt}
-            className="w-full py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold text-[#12483E] bg-[#EBF3F0] hover:bg-[#DEEBE6] active:scale-[0.99] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer min-h-[42px]"
+            className="no-print w-full py-2.5 sm:py-3 px-4 text-xs sm:text-sm font-semibold text-[#12483E] bg-[#EBF3F0] hover:bg-[#DEEBE6] active:scale-[0.99] rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer min-h-[42px]"
           >
             {isDownloaded ? (
               <>
                 <Check className="w-4 h-4 text-[#12483E]" />
-                <span>Kwitansi PDF Berhasil Disimpan</span>
+                <span>Membuka Dokumen PDF...</span>
               </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Unduh Bukti Pembayaran Resmi (PDF)</span>
+                <span>Unduh / Cetak Bukti Pembayaran Resmi (PDF)</span>
               </>
             )}
           </button>
 
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <div className="no-print grid grid-cols-2 gap-2.5 pt-1">
             <button
               onClick={onGoToProfile}
               className="py-2.5 px-3 text-xs font-semibold text-white bg-[#12483E] hover:bg-[#0A2E28] active:scale-[0.99] rounded-xl transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] shadow-2xs"

@@ -24,6 +24,19 @@ export interface KostSettings {
   qrisImageUrl: string;
 }
 
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  tenantId: string;
+  roomId: string;
+  periodMonth: string;
+  amount: number;
+  dueDate: string;
+  status: 'paid' | 'unpaid' | 'overdue';
+  notes?: string;
+  paidAt?: string;
+}
+
 export const landingApi = {
   getRooms: async (): Promise<Room[]> => {
     try {
@@ -41,6 +54,15 @@ export const landingApi = {
       return await res.json();
     } catch {
       return null;
+    }
+  },
+  getInvoicesByTenant: async (tenantId: string): Promise<Invoice[]> => {
+    try {
+      const res = await fetch(`${API_BASE}/invoices?tenantId=${tenantId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
     }
   },
   submitPayment: async (data: any) => {

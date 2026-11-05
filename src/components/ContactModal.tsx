@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, MessageSquare, Phone, Mail, Clock, MapPin, Copy, Check } from 'lucide-react';
 
+import { landingApi, KostSettings } from '../api';
+
 interface ContactModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -8,8 +10,20 @@ interface ContactModalProps {
 
 export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
   const [copiedType, setCopiedType] = React.useState<string | null>(null);
+  const [settings, setSettings] = React.useState<KostSettings | null>(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      landingApi.getSettings().then((data) => {
+        if (data) setSettings(data);
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const phoneDisplay = settings?.phone || '081234567890';
+  const emailDisplay = settings?.email || 'pengelola@senjaliving.id';
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard?.writeText(text);
@@ -61,12 +75,12 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   WhatsApp Pengelola
                 </span>
                 <span className="text-xs font-semibold text-[#1A2220] block">
-                  [+62 812-xxxx-xxxx]
+                  {phoneDisplay}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => handleCopy('+62 812-xxxx-xxxx', 'wa')}
+              onClick={() => handleCopy(phoneDisplay, 'wa')}
               className="px-2 py-1 text-[10px] font-medium text-[#12483E] bg-white border border-[#12483E]/20 rounded-md hover:bg-[#EBF3F0] transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
               {copiedType === 'wa' ? (
@@ -94,12 +108,12 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   Panggilan Langsung
                 </span>
                 <span className="text-xs font-semibold text-[#1A2220] block">
-                  [+62 821-xxxx-xxxx]
+                  {phoneDisplay}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => handleCopy('+62 821-xxxx-xxxx', 'phone')}
+              onClick={() => handleCopy(phoneDisplay, 'phone')}
               className="px-2 py-1 text-[10px] font-medium text-[#12483E] bg-white border border-[#12483E]/20 rounded-md hover:bg-[#EBF3F0] transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
               {copiedType === 'phone' ? (
@@ -127,12 +141,12 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   Surel Resmi
                 </span>
                 <span className="text-xs font-semibold text-[#1A2220] block">
-                  [pengelola@senjaliving.id]
+                  {emailDisplay}
                 </span>
               </div>
             </div>
             <button
-              onClick={() => handleCopy('pengelola@senjaliving.id', 'email')}
+              onClick={() => handleCopy(emailDisplay, 'email')}
               className="px-2 py-1 text-[10px] font-medium text-[#12483E] bg-white border border-[#12483E]/20 rounded-md hover:bg-[#EBF3F0] transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
               {copiedType === 'email' ? (
