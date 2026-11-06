@@ -73,4 +73,41 @@ export const landingApi = {
     });
     return res.json();
   },
+  checkTenantPhone: async (phone: string) => {
+    const res = await fetch(`${API_BASE}/auth/tenant-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal memeriksa nomor telepon');
+    return data;
+  },
+  loginTenant: async (phone: string, password: string) => {
+    const res = await fetch(`${API_BASE}/auth/tenant-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err: any = new Error(data.error || 'Gagal login');
+      err.requireSetPassword = data.requireSetPassword;
+      err.tenantId = data.tenantId;
+      err.name = data.name;
+      throw err;
+    }
+    return data;
+  },
+  setTenantPassword: async (tenantId: string, password: string, phone?: string) => {
+    const res = await fetch(`${API_BASE}/auth/tenant-set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenantId, password, phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Gagal membuat password');
+    return data;
+  },
 };
+
