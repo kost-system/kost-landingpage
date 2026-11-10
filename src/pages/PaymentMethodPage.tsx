@@ -60,6 +60,10 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
         window.snap.pay(data.token, {
           onSuccess: function (result: any) {
             console.log('Payment success callback:', result);
+            // Langsung picu sinkronisasi status ke backend
+            if (data.orderId) {
+              fetch(`${apiUrl}/payments/midtrans/status/${data.orderId}`).catch(console.error);
+            }
             onSelectChannel(preferredMethod || 'qris');
           },
           onPending: function (result: any) {
