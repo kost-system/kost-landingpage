@@ -64,9 +64,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   }, [tenant?.id]);
 
-  // Cek tagihan bulan berjalan
+  // Cek tagihan bulan berjalan dari Supabase
   const currentPeriod = new Date().toISOString().slice(0, 7);
-  const currentInvoice = invoices.find((inv) => inv.periodMonth === currentPeriod) || invoices[0];
+  // Cari tagihan resmi yang belum lunas terlebih dahulu, atau tagihan bulan berjalan
+  const currentInvoice = invoices.find((inv) => inv.periodMonth === currentPeriod) || invoices.find((inv) => inv.status === 'unpaid') || invoices[0] || null;
+  const hasOfficialInvoice = Boolean(currentInvoice);
   const isInvoicePaid = isPaid || (currentInvoice ? currentInvoice.status === 'paid' : false);
 
   // Ambil data nyata yang login dari Supabase/Database
@@ -224,6 +226,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <span className="text-[10px] text-[#71807C] flex items-center gap-1">
                 <Loader2 className="w-3 h-3 animate-spin" /> Memeriksa...
               </span>
+            ) : !hasOfficialInvoice ? (
+              <span className="text-[10px] sm:text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                Belum Diterbitkan Pengelola
+              </span>
             ) : (
               <span
                 className={`text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full ${
@@ -245,14 +251,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <p className="text-[11px] text-[#71807C] mt-0.5">
                 {isInvoicePaid && currentInvoice?.paidAt
                   ? `Dibayar pada: ${new Date(currentInvoice.paidAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
-                  : 'Batas jatuh tempo: Tanggal 10 setiap bulan'}
+                  : hasOfficialInvoice
+                  ? `No: ${currentInvoice?.invoiceNumber || '-'} · Jatuh tempo: ${currentInvoice?.dueDate ? new Date(currentInvoice.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' }) : 'Tanggal 10'}`
+                  : 'Tagihan resmi bulan ini belum diterbitkan oleh pengelola kost'}
               </p>
             </div>
             <div className="text-left sm:text-right w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between gap-2">
               <span className="text-sm sm:text-base font-extrabold text-[#12483E]">
                 {currentInvoice?.amount ? `Rp ${currentInvoice.amount.toLocaleString('id-ID')}` : monthlyPrice}
               </span>
-              {!isInvoicePaid ? (
+              {!hasOfficialInvoice ? (
+                <span className="text-[11px] font-medium text-slate-500 italic">
+                  Menunggu Tagihan Terbit
+                </span>
+              ) : !isInvoicePaid ? (
                 <button
                   onClick={() => onNavigateToPayment(currentInvoice)}
                   className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#12483E] hover:bg-[#0E3A32] rounded-lg transition-colors cursor-pointer shadow-2xs"
