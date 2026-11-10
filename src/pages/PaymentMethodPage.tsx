@@ -15,6 +15,7 @@ import { PaymentChannel } from '../types';
 interface PaymentMethodPageProps {
   onBackToProfile: () => void;
   onSelectChannel: (channel: PaymentChannel) => void;
+  activeInvoice?: any;
 }
 
 declare global {
@@ -26,13 +27,16 @@ declare global {
 export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
   onBackToProfile,
   onSelectChannel,
+  activeInvoice,
 }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const savedSession = typeof window !== 'undefined' ? localStorage.getItem('tenant_session') : null;
   const tenant = savedSession ? JSON.parse(savedSession) : null;
-  const monthlyPrice = tenant?.monthlyPrice ? Number(tenant.monthlyPrice) : 1500000;
+  const monthlyPrice = activeInvoice?.amount
+    ? Number(activeInvoice.amount)
+    : (tenant?.monthlyPrice ? Number(tenant.monthlyPrice) : 1500000);
 
   // Trigger Midtrans Snap Popup
   const handleTriggerSnap = async (preferredMethod?: 'qris' | 'briva') => {
@@ -46,6 +50,7 @@ export const PaymentMethodPage: React.FC<PaymentMethodPageProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenantId: tenant?.id,
+          invoiceId: activeInvoice?.id,
           amount: monthlyPrice,
           preferredMethod,
         }),

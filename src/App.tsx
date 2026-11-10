@@ -15,6 +15,7 @@ export default function App() {
   const [isBillPaid, setIsBillPaid] = useState<boolean>(false);
   const [isContactOpen, setIsContactOpen] = useState<boolean>(false);
   const [loggedInTenant, setLoggedInTenant] = useState<any>(null);
+  const [payingInvoice, setPayingInvoice] = useState<any>(null);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -71,7 +72,10 @@ export default function App() {
               tenant={loggedInTenant}
               isPaid={isBillPaid}
               onLogout={handleLogout}
-              onNavigateToPayment={() => setCurrentPage('pilih-metode')}
+              onNavigateToPayment={(inv) => {
+                setPayingInvoice(inv);
+                setCurrentPage('pilih-metode');
+              }}
               onViewSuccessReceipt={() => setCurrentPage('pembayaran-sukses')}
             />
           ) : (
@@ -85,6 +89,7 @@ export default function App() {
 
         {currentPage === 'pilih-metode' && (
           <PaymentMethodPage
+            activeInvoice={payingInvoice}
             onBackToProfile={() => setCurrentPage('profil')}
             onSelectChannel={handleSelectChannel}
           />

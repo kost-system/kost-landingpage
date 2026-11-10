@@ -26,7 +26,7 @@ interface ProfilePageProps {
   tenant: any;
   isPaid?: boolean;
   onLogout?: () => void;
-  onNavigateToPayment: () => void;
+  onNavigateToPayment: (invoice?: Invoice) => void;
   onViewSuccessReceipt?: () => void;
 }
 
@@ -254,7 +254,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </span>
               {!isInvoicePaid ? (
                 <button
-                  onClick={onNavigateToPayment}
+                  onClick={() => onNavigateToPayment(currentInvoice)}
                   className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#12483E] hover:bg-[#0E3A32] rounded-lg transition-colors cursor-pointer shadow-2xs"
                 >
                   Bayar Sekarang
